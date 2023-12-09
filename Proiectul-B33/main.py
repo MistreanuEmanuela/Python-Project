@@ -1,59 +1,50 @@
 import random
+_PRIME = 2**275 - 1
 
 
-def combination(vector_elements, k, current_combination=None, start=0):
-    if current_combination is None:
-        current_combination = []
-
-    if k == 0:
-        return [tuple(current_combination)]
-
-    comb_list = set()
-    for i in range(start, len(vector_elements)):
-        current_combination.append(vector_elements[i])
-        comb_list.update(combination(vector_elements, k - 1, current_combination, i + 1))
-        current_combination.pop()
-
-    return comb_list
+def euclid_alg(a, b):
+    if a == 0:
+        return b, 0, 1
+    gcd, x1, y1 = euclid_alg(b % a, a)
+    x = y1 - (b // a) * x1
+    y = x1
+    return gcd, x, y
 
 
-def lagrange_basis(points, i):
-    result = []
-    xi = points[i][0]
+def division_modulo(numerator, denominator, p):
+    inv, x, y = euclid_alg(denominator, p)
+    return numerator * inv
+
+
+def lagrange_basis(points_interpolate, index, x):
+    xi = points_interpolate[index][0]
     denominator = 1
     free_t = 1
-    vector = []
-    for j, item in enumerate(points):
-        if j != i:
+    for j, item in enumerate(points_interpolate):
+        if j != index:
             xj, yj = item
             denominator *= (xi - xj)
-            free_t *= xj
-            vector.append(xj)
-
-    result.append(1 / denominator)
-    for i in range(1, len(points) - 1):
-        x = combination(vector, i)
-        sum = 0
-        for item in x:
-            product = 1
-            for element in item:
-                product *= element
-            sum += product
-        coeff = sum/denominator if (len(points) - i) % 2 == 1 else (-sum)/denominator
-        result.append(coeff)
-    free_t = free_t/denominator if len(points) % 2 == 1 else -free_t/denominator
-    result.append(free_t)
-    return result
+            free_t *= x - xj
+    return [denominator, free_t]
 
 
-def lagrange_interpolation(points, coefficients):
-    f_x = []
-    for i in range(len(points)):
-        coeff = 0
-        for j in range(len(points)):
-            coeff += points[j][1] * coefficients[j][i]
-        f_x.append(coeff)
-    return f_x
+def lagrange_interpolation(x, points_interpolate, p):
+    numerators = []
+    denominators = []
+    for index in range(len(points_interpolate)):
+        numerators.append(lagrange_basis(points_interpolate, index, x)[1])
+        denominators.append(lagrange_basis(points_interpolate, index, x)[0])
+    print(len(numerators))
+    print(len(denominators))
+    denominator = 1
+
+    for i in denominators:
+        denominator *= i
+
+    num = sum([division_modulo(numerators[i] * denominator * points_interpolate[i][1] % p, denominators[i], p)
+               for i in range(len(points_interpolate))])
+
+    return (division_modulo(num, denominator, p) + p) % p
 
 
 class ShamirSecretShare:
@@ -61,21 +52,20 @@ class ShamirSecretShare:
         self.__n = n
         self.__number = number
         self.__minim_participants = minim_participants
-        self.__coef = []
+        self.__coefficients = []
         self.points = []
 
     def coefficients_det(self):
-        self.__coef.append(self.__number)
+        self.__coefficients.append(self.__number)
         for i in range(self.__minim_participants - 1):
-            random_coeff = random.randint(1, 50)
-            self.__coef.append(random_coeff)
-        print(self.__coef)
+            random_coefficients = random.randint(1, _PRIME-1)
+            self.__coefficients.append(random_coefficients)
+        print(self.__coefficients)
 
     def _calc_function(self, x):
         result = self.__number
         for i in range(1, self.__minim_participants):
-            result += x ** i * self.__coef[i]
-        print(result)
+            result += (x ** i * self.__coefficients[i]) % _PRIME
         return result
 
     def compute_points(self):
@@ -90,17 +80,13 @@ class ShamirSecretShare:
 
 #testare:
 
-shair = ShamirSecretShare(1234, 3, 6)
+shair = ShamirSecretShare(12344554, 2, 3)
 shair.coefficients_det()
 shair.compute_points()
 shair.split_info()
 points = []
 for i in shair.points:
-    if(len(points) < 3):
+    if(len(points) < 2):
         points.append(i)
-l_0 = lagrange_basis(points, 0)
-l_1 = lagrange_basis(points, 1)
-l_2 = lagrange_basis(points, 2)
-coef = [l_0, l_1, l_2]
-l_in = lagrange_interpolation(points, coef)
-print(l_in[-1])
+l_in = lagrange_interpolation(0, points, _PRIME)
+print(l_in)

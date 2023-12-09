@@ -1,16 +1,29 @@
-# This is a sample Python script.
+import random
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+class Shamir_secret_share():
+    def __init__(self, number, minim_participants, n):
+        self.__n = n
+        self.__number = number
+        self.__minim_participants = minim_participants
+        self.__coef = []
+        self.__points = []
 
+    def coefficients_det(self):
+        for i in range(self.__minim_participants - 1):
+            random_coeff = random.randint(1, self.__number)
+            self.__coef.append(random_coeff)
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+    def _calc_function(self, x):
+        result = self.__number
+        for i in range(1, self.__minim_participants - 1):
+            result += x ** i * self.__coef[i-1]
+        return result
 
+    def compute_points(self):
+        for i in range(1, self.__n+1):
+            point = self._calc_function(i)
+            self.__points.append((i, point))
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    def split_info(self):
+        for i in self.__points:
+            print(i)

@@ -2,17 +2,19 @@ import random
 _PRIME = 2**275 - 1
 
 
-def euclid_alg(a, b):
-    if a == 0:
-        return b, 0, 1
-    gcd, x1, y1 = euclid_alg(b % a, a)
-    x = y1 - (b // a) * x1
-    y = x1
-    return gcd, x, y
+def euclid_alg(a, b, x=0, y=1, last_x=1, last_y=0):
+    if b == 0:
+        return last_x, last_y
+    else:
+        remain = a // b
+        a, b = b, a % b
+        x, last_x = last_x - remain * x, x
+        y, last_y = last_y - remain * y, y
+        return euclid_alg(a, b, x, y, last_x, last_y)
 
 
 def division_modulo(numerator, denominator, p):
-    inv, x, y = euclid_alg(denominator, p)
+    inv, x = euclid_alg(denominator, p)
     return numerator * inv
 
 
@@ -80,13 +82,13 @@ class ShamirSecretShare:
 
 #testare:
 
-shair = ShamirSecretShare(12344554, 2, 3)
+shair = ShamirSecretShare(12344554, 3, 7)
 shair.coefficients_det()
 shair.compute_points()
 shair.split_info()
 points = []
 for i in shair.points:
-    if(len(points) < 2):
+    if(len(points) < 3):
         points.append(i)
 l_in = lagrange_interpolation(0, points, _PRIME)
 print(l_in)

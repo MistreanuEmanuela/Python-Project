@@ -36,8 +36,6 @@ def lagrange_interpolation(x, points_interpolate, p):
     for index in range(len(points_interpolate)):
         numerators.append(lagrange_basis(points_interpolate, index, x)[1])
         denominators.append(lagrange_basis(points_interpolate, index, x)[0])
-    print(len(numerators))
-    print(len(denominators))
     denominator = 1
 
     for i in denominators:
@@ -49,23 +47,43 @@ def lagrange_interpolation(x, points_interpolate, p):
     return (division_modulo(num, denominator, p) + p) % p
 
 
-class ShamirSecretShare:
-    def __init__(self, number, minim_participants, n):
+class ShamirSecretShareFiles:
+    def __init__(self, file_path, minim_participants, n):
+        if n < minim_participants:
+            raise Exception("You should enter a smaller number or the information will be lost")
+        if n < 3:
+            raise Exception("You shoud enter a biggest number")
+        if minim_participants < 2:
+            raise Exception("You should enter a biggest number")
         self.__n = n
-        self.__number = number
+        self.__file_path = file_path
         self.__minim_participants = minim_participants
         self.__coefficients = []
         self.points = []
+        self.__secret = self.__determinate_secret()
+
+    def __determinate_secret(self):
+        try:
+            with open(self.__file_path, "rb") as f:
+                secret = f.read()
+            number = int.from_bytes(secret, 'big')
+            print(number)
+            return number
+        except FileNotFoundError:
+            print("The path to file is not correct, please check")
 
     def coefficients_det(self):
-        self.__coefficients.append(self.__number)
+        self.__coefficients.append(self.__secret)
         for i in range(self.__minim_participants - 1):
             random_coefficients = random.randint(1, _PRIME-1)
             self.__coefficients.append(random_coefficients)
-        print(self.__coefficients)
+
+    def run(self):
+        self.coefficients_det()
+        self.compute_points()
 
     def _calc_function(self, x):
-        result = self.__number
+        result = self.__secret
         for i in range(1, self.__minim_participants):
             result += (x ** i * self.__coefficients[i]) % _PRIME
         return result
@@ -79,16 +97,16 @@ class ShamirSecretShare:
         for i in self.points:
             print(i)
 
+    def reconstruct(self, lista_index):
+        points_interpolate = []
+        for i in lista_index:
+            points_interpolate.append(self.points[i])
+        return lagrange_interpolation(0, points_interpolate, _PRIME)
+
 
 #testare:
 
-shair = ShamirSecretShare(12344554, 3, 7)
-shair.coefficients_det()
-shair.compute_points()
-shair.split_info()
-points = []
-for i in shair.points:
-    if(len(points) < 3):
-        points.append(i)
-l_in = lagrange_interpolation(0, points, _PRIME)
-print(l_in)
+shair = ShamirSecretShareFiles("C:\\Users\\My Pc\\Desktop\\file.txt", 4, 7)
+shair.run()
+result = shair.reconstruct([1, 2, 3, 5])
+print(result)

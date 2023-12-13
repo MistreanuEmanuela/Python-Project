@@ -1,5 +1,6 @@
 import random
-_PRIME = 2**275 - 1
+
+DEFAULT_PRIME = 2 ** 275 - 1
 
 
 def euclid_alg(a, b, x=0, y=1, last_x=1, last_y=0):
@@ -52,7 +53,7 @@ class ShamirSecretShareFiles:
         if n < minim_participants:
             raise Exception("You should enter a smaller number or the information will be lost")
         if n < 3:
-            raise Exception("You shoud enter a biggest number")
+            raise Exception("You should enter a biggest number")
         if minim_participants < 2:
             raise Exception("You should enter a biggest number")
         self.__n = n
@@ -61,6 +62,7 @@ class ShamirSecretShareFiles:
         self.__coefficients = []
         self.points = []
         self.__secret = self.__determinate_secret()
+        self.__prime = DEFAULT_PRIME
 
     def __determinate_secret(self):
         try:
@@ -75,18 +77,26 @@ class ShamirSecretShareFiles:
     def coefficients_det(self):
         self.__coefficients.append(self.__secret)
         for i in range(self.__minim_participants - 1):
-            random_coefficients = random.randint(1, _PRIME-1)
+            random_coefficients = random.randint(1, self.__prime - 1)
             self.__coefficients.append(random_coefficients)
 
     def run(self):
+        self.__determinate_prime()
         self.coefficients_det()
         self.compute_points()
+        self.split_info()
+
+    def __determinate_prime(self):
+        while self.__prime < self.__secret:
+            self.__prime += 1
+            self.__prime *= 2
+            self.__prime -= 1
 
     def _calc_function(self, x):
-        result = self.__secret
+        result_function = self.__secret
         for i in range(1, self.__minim_participants):
-            result += (x ** i * self.__coefficients[i]) % _PRIME
-        return result
+            result_function += (x ** i * self.__coefficients[i]) % self.__prime
+        return result_function
 
     def compute_points(self):
         for i in range(1, self.__n + 1):
@@ -94,19 +104,43 @@ class ShamirSecretShareFiles:
             self.points.append((i, point))
 
     def split_info(self):
-        for i in self.points:
-            print(i)
+        for index, point in enumerate(self.points):
+            file_split = f'file{index + 1}.secret'
+            try:
+                with open(file_split, 'w') as f:
+                    string = str(point[0]) + " , " + str(point[1])
+                    f.write(string)
 
-    def reconstruct(self, lista_index):
+            except Exception:
+                print("An error occurred while creating the files")
+
+    def reconstruct(self, lista_files):
         points_interpolate = []
-        for i in lista_index:
-            points_interpolate.append(self.points[i])
-        return lagrange_interpolation(0, points_interpolate, _PRIME)
+        if (len(lista_files)) < self.__minim_participants:
+            raise Exception("Too few files, we can not determine the content of the main file")
+        else:
+            for file in lista_files:
+                try:
+                    with open(file, 'r') as f:
+                        line = f.readlines()
+                        line = line[0]
+                        line = line.split(',')
+                        x, y = int(line[0]), int(line[1])
+                        points_interpolate.append((x, y))
+                except Exception:
+                    print("An error occurred while reconstruction the file")
+
+        result_reconstruct = lagrange_interpolation(0, points_interpolate, self.__prime)
+        try:
+            with open("result.txt", 'wb') as file:
+                file.write(result_reconstruct.to_bytes((result_reconstruct.bit_length() + 7) // 8, 'big'))
+        except Exception:
+            print("An error occurred while creating the result file ")
+
+        return lagrange_interpolation(0, points_interpolate, self.__prime)
 
 
-#testare:
-
-shair = ShamirSecretShareFiles("C:\\Users\\My Pc\\Desktop\\file.txt", 4, 7)
-shair.run()
-result = shair.reconstruct([1, 2, 3, 5])
+shamir = ShamirSecretShareFiles("C:\\Users\\My Pc\\Desktop\\file.txt", 3, 5)
+shamir.run()
+result = shamir.reconstruct(['file1.secret', 'file2.secret', 'file4.secret'])
 print(result)

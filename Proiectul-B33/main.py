@@ -1,6 +1,7 @@
 import random
+import sys
 
-DEFAULT_PRIME = 2 ** 275 - 1
+DEFAULT_PRIME = 2 ** 275111 - 1
 
 
 def euclid_alg(a, b, x=0, y=1, last_x=1, last_y=0):
@@ -48,6 +49,29 @@ def lagrange_interpolation(x, points_interpolate, p):
     return (division_modulo(num, denominator, p) + p) % p
 
 
+def reconstruct_file(lista_files, prime):
+    points_interpolate = []
+    for file in lista_files:
+        try:
+            with open(file, 'r') as f:
+                line = f.readlines()
+                line = line[0]
+                line = line.split(',')
+                x, y = int(line[0]), int(line[1])
+                points_interpolate.append((x, y))
+        except Exception:
+            print("An error occurred while open the split file, try to split the information first")
+
+    result_reconstruct = lagrange_interpolation(0, points_interpolate, prime)
+    try:
+        with open("result.txt", 'wb') as file:
+            file.write(result_reconstruct.to_bytes((result_reconstruct.bit_length() + 7) // 8, 'big'))
+    except Exception:
+        print("An error occurred while creating the result file ")
+    print("If the information is not readable you may pay attention on numbers of files")
+    return lagrange_interpolation(0, points_interpolate, prime)
+
+
 class ShamirSecretShareFiles:
     def __init__(self, file_path, minim_participants, n):
         if n < minim_participants:
@@ -69,7 +93,6 @@ class ShamirSecretShareFiles:
             with open(self.__file_path, "rb") as f:
                 secret = f.read()
             number = int.from_bytes(secret, 'big')
-            print(number)
             return number
         except FileNotFoundError:
             print("The path to file is not correct, please check")
@@ -81,16 +104,9 @@ class ShamirSecretShareFiles:
             self.__coefficients.append(random_coefficients)
 
     def run(self):
-        self.__determinate_prime()
         self.coefficients_det()
         self.compute_points()
         self.split_info()
-
-    def __determinate_prime(self):
-        while self.__prime < self.__secret:
-            self.__prime += 1
-            self.__prime *= 2
-            self.__prime -= 1
 
     def _calc_function(self, x):
         result_function = self.__secret
@@ -110,37 +126,43 @@ class ShamirSecretShareFiles:
                 with open(file_split, 'w') as f:
                     string = str(point[0]) + " , " + str(point[1])
                     f.write(string)
-
             except Exception:
                 print("An error occurred while creating the files")
 
     def reconstruct(self, lista_files):
-        points_interpolate = []
-        if (len(lista_files)) < self.__minim_participants:
-            raise Exception("Too few files, we can not determine the content of the main file")
+        if len(lista_files) != self.__minim_participants:
+            raise Exception("Too few files, we can reconstruct the main file")
+        print(reconstruct_file(lista_files, DEFAULT_PRIME))
+
+
+def main():
+    if sys.argv[1] == "-help":
+        print("-split -n -m path_to file")
+        print("     - n - number of files in which you want to share the information")
+        print("     - m - number of minim files you want to use to reconstruct the information")
+        print("     - path_to_file - the file whose information you want to share ")
+        print("-recompose file_name1 file_name2 ... file_name_m")
+        print("  BE CAREFUL THE NUMBERS OF FILENAME SHOULD BE AT LEAST M")
+
+    elif sys.argv[1] == "-split":
+        print("split")
+        if len(sys.argv) != 5:
+            raise Exception("Wrong number of parameters try main.py -help")
         else:
-            for file in lista_files:
-                try:
-                    with open(file, 'r') as f:
-                        line = f.readlines()
-                        line = line[0]
-                        line = line.split(',')
-                        x, y = int(line[0]), int(line[1])
-                        points_interpolate.append((x, y))
-                except Exception:
-                    print("An error occurred while reconstruction the file")
-
-        result_reconstruct = lagrange_interpolation(0, points_interpolate, self.__prime)
-        try:
-            with open("result.txt", 'wb') as file:
-                file.write(result_reconstruct.to_bytes((result_reconstruct.bit_length() + 7) // 8, 'big'))
-        except Exception:
-            print("An error occurred while creating the result file ")
-
-        return lagrange_interpolation(0, points_interpolate, self.__prime)
+            shamir = ShamirSecretShareFiles(sys.argv[4], int(sys.argv[3]), int(sys.argv[2]))
+            shamir.run()
+    elif sys.argv[1] == "-recompose":
+        if len(sys.argv) < 4:
+            raise Exception(" you need more file, try main.py -help for more information")
+        else:
+            files = []
+            for i in range(2, len(sys.argv)):
+                files.append(sys.argv[i])
+            print(files)
+            reconstruct_file(files, DEFAULT_PRIME)
+    else:
+        raise Exception(f"command {sys.argv[1]} not found")
 
 
-shamir = ShamirSecretShareFiles("C:\\Users\\My Pc\\Desktop\\file.txt", 3, 5)
-shamir.run()
-result = shamir.reconstruct(['file1.secret', 'file2.secret', 'file4.secret'])
-print(result)
+if __name__ == "__main__":
+    main()
